@@ -1,183 +1,301 @@
--- =========================================================================
--- AVALIAÇÃO: TRANSFORMAÇÃO DO MODELO CONCEITUAL (DER)
--- Contexto: Aplicativo de transporte/UBER
--- =========================================================================
+-- ==========================================
+-- PROJETO: APLICATIVO UBER
+-- ARQUIVO: script-ddl.sql
+-- ==========================================
 
--- Remove o banco de dados se ele já existir para evitar erros
-DROP DATABASE IF EXISTS UBER;
+CREATE DATABASE aplicativo_uber;
 
--- Criação do banco de dados (o nosso "container" de tabelas)
-CREATE DATABASE UBER;
-USE UBER;
+USE aplicativo_uber;
 
--- =========================================================================
--- 1. TABELA CLIENTE (Entidade Forte)
--- CONCEITO:
--- * No DER em papel, o Cliente tinha o CPF como identificador (Chave Natural).
--- * DECISÃO DE PROJETO: Adotamos um 'idCliente' artificial (Surrogate Key) do tipo INT UNSIGNED.
--- * POR QUE 'UNSIGNED'? Removemos os números negativos, dobrando o limite
---   de clientes que o sistema pode cadastrar (de 2 bilhões para 4 bilhões).
--- =========================================================================
--- SOBRE 1ª FORMA NORMAL (1FN - ATOMICIDADE):
---
--- CONCEITO INICIAL REPRESENTADO NO MODELO DE ENTIDADE E RELACIONAMENTO:
--- O Cliente possui Atributo Composto (Endereço) e Atributo Multivalorado (E-mail).
---
--- APLICAÇÃO DA 1ª FORMA NORMAL (1FN - ATOMICIDADE):
--- 1. Atributo Composto (Endereço): Foi DESMEMBRADO em suas partes simples e
---    atômicas: logradouro, numero, bairro, cidade, uf e cep.
--- 2. Atributo Multivalorado (E-mail): Um cliente pode ter N e-mails. Para não
---    violar a 1FN (evitando criar colunas email1, email2 ou colocar múltiplos
---    e-mails na mesma célula separados por vírgula), o e-mail FOI REMOVIDO
---    desta tabela e virou uma nova tabela relacionada ('ClienteEmail').
+-- CENARIO 1: Cadastro das formas de pagamento
 
-CREATE TABLE Cliente (
-  -- idCliente: Chave Primária (PK). Identifica unicamente cada cliente de forma segura.
-  idCliente INT UNSIGNED NOT NULL PRIMARY KEY,
+CREATE TABLE formas_pagamento (
+    id_forma INT PRIMARY KEY AUTO_INCREMENT,
+    descricao VARCHAR(50) NOT NULL UNIQUE,
+    tipo VARCHAR(30) NOT NULL,
+    ativo BOOLEAN DEFAULT TRUE,
+    taxa DECIMAL(5,2) DEFAULT 0
+);
 
-  -- nome: Atributo simples/atômico obrigatório (NOT NULL).
-  nome VARCHAR(125) NOT NULL,
-  CPF VARCHAR(11) NOT NULL UNIQUE,
+-- CENARIO 2: Cadastro dos enderecos
 
-  -- ATRIBUTO COMPOSTO (ENDEREÇO) DESMEMBRADO (1FN):
-  -- Todos os campos são atômicos e indivisíveis.
-  logradouro VARCHAR(150) NOT NULL,
-  numero VARCHAR(10) NOT NULL,
-  bairro VARCHAR(60) NOT NULL,
-  cidade VARCHAR(60) NOT NULL,
-  uf CHAR(2) NOT NULL,
-  cep CHAR(8) NOT NULL
+CREATE TABLE enderecos (
+    id_endereco INT PRIMARY KEY AUTO_INCREMENT,
+    rua VARCHAR(100) NOT NULL,
+    numero VARCHAR(10) NOT NULL,
+    bairro VARCHAR(60) NOT NULL,
+    cidade VARCHAR(60) NOT NULL,
+    cep VARCHAR(10) NOT NULL
+);
+
+-- CENARIO 3: Cadastro dos passageiros
+
+CREATE TABLE passageiros (
+    id_passageiro INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(100) NOT NULL,
+    cpf VARCHAR(14) NOT NULL UNIQUE,
+    telefone VARCHAR(20) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    data_nascimento DATE NOT NULL
+);
+
+-- CENARIO 4: Cadastro dos motoristas
+
+CREATE TABLE motoristas (
+    id_motorista INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(100) NOT NULL,
+    cpf VARCHAR(14) NOT NULL UNIQUE,
+    cnh VARCHAR(20) NOT NULL UNIQUE,
+    telefone VARCHAR(20) NOT NULL,
+    data_cadastro DATE NOT NULL
+);
+
+-- CENARIO 5: Cadastro dos veiculos
+
+CREATE TABLE veiculos (
+    id_veiculo INT PRIMARY KEY AUTO_INCREMENT,
+    modelo VARCHAR(60) NOT NULL,
+    marca VARCHAR(50) NOT NULL,
+    placa VARCHAR(10) NOT NULL UNIQUE,
+    ano INT NOT NULL,
+    id_motorista INT NOT NULL,
+
+    FOREIGN KEY (id_motorista)
+    REFERENCES motoristas(id_motorista),
+
+    CHECK (ano >= 2000)
+);
+
+-- CENARIO 6: Registro das corridas
+
+CREATE TABLE corridas (
+    id_corrida INT PRIMARY KEY AUTO_INCREMENT,
+    id_passageiro INT NOT NULL,
+    id_motorista INT NOT NULL,
+    id_origem INT NOT NULL,
+    id_destino INT NOT NULL,
+    data_hora DATETIME NOT NULL,
+    valor DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'Solicitada',
+
+    FOREIGN KEY (id_passageiro)
+    REFERENCES passageiros(id_passageiro),
+
+    FOREIGN KEY (id_motorista)
+    REFERENCES motoristas(id_motorista),
+
+    FOREIGN KEY (id_origem)
+    REFERENCES enderecos(id_endereco),
+
+    FOREIGN KEY (id_destino)
+    REFERENCES enderecos(id_endereco),
+
+    CHECK (valor >= 0),
+
+    CHECK (status IN ('Solicitada', 'Em andamento', 'Concluida', 'Cancelada'))
+);
+
+-- CENARIO 7: Registro dos pagamentos
+
+CREATE TABLE pagamentos (
+    id_pagamento INT PRIMARY KEY AUTO_INCREMENT,
+    id_corrida INT NOT NULL UNIQUE,
+    id_forma INT NOT NULL,
+    valor DECIMAL(10,2) NOT NULL,
+    data_pagamento DATETIME NOT NULL,
+    status VARCHAR(20) DEFAULT 'Aprovado',
+
+    FOREIGN KEY (id_corrida)
+    REFERENCES corridas(id_corrida),
+
+    FOREIGN KEY (id_forma)
+    REFERENCES formas_pagamento(id_forma),
+
+    CHECK (valor >= 0),
+
+    CHECK (status IN ('Aprovado', 'Pendente', 'Recusado'))
+);
+
+-- CENARIO 8: Avaliacoes das corridas
+
+CREATE TABLE avaliacoes (
+    id_avaliacao INT PRIMARY KEY AUTO_INCREMENT,
+    id_corrida INT NOT NULL UNIQUE,
+    id_passageiro INT NOT NULL,
+    id_motorista INT NOT NULL,
+    nota INT NOT NULL,
+    comentario VARCHAR(255),
+    data_avaliacao DATE NOT NULL,
+
+    FOREIGN KEY (id_corrida)
+    REFERENCES corridas(id_corrida),
+
+    FOREIGN KEY (id_passageiro)
+    REFERENCES passageiros(id_passageiro),
+
+    FOREIGN KEY (id_motorista)
+    REFERENCES motoristas(id_motorista),
+
+    CHECK (nota BETWEEN 1 AND 5)
 );
 
 
--- =========================================================================
--- 1.1 TABELA CLIENTE_EMAIL (Solução da 1FN para Atributo Multivalorado)
---
--- CONCEITO:
--- Como um Cliente pode ter zero, um ou múltiplos e-mails, criamos esta
--- tabela associada. A chave primária é COMPOSTA (idCliente + email) para
--- evitar que o mesmo e-mail seja cadastrado duas vezes para o mesmo cliente.
--- =========================================================================
-CREATE TABLE ClienteEmail (
-  idCliente INT UNSIGNED NOT NULL,
-  email VARCHAR(100) NOT NULL,
 
-  -- Chave Primária Composta
-  PRIMARY KEY (idCliente, email),
+-- =====================================================
+-- PROJETO: APLICATIVO UBER
+-- ARQUIVO: script-dml.sql
+-- =====================================================
 
-  -- Chave Estrangeira com Integridade Referencial
-  CONSTRAINT fk_cliente_email
-    FOREIGN KEY (idCliente)
-    REFERENCES Cliente(idCliente)
-);
-
--- =========================================================================
--- 2. TABELA CORRIDA (Relacionamento 1:1 com Cliente)
--- CONCEITO DE MAPEAMENTO (REGRA DE OURO):
--- - No relacionamento 1:1 ("Um cliente realiza apenas uma corrida por vez"), a chave
---   primária da entidade "1" (Cliente) "viaja" para a entidade "1" (Corrida)
---   transformando-se em uma Chave Estrangeira (Foreign Key).
--- =========================================================================
-CREATE TABLE Corrida (
-
-  -- idCorrida: Identificador único de cada corrida realizada.
-  idCorrida int UNSIGNED NOT NULL PRIMARY KEY,
-
-  -- dataCorrida: Armazena o momento em que a corrida foi solicitada.
-  dataCorrida DATE NOT NULL,
-
-  -- idCliente (FK): A "ponte" que liga a corrida ao seu respectivo cliente.
-  -- Precisa ter EXATAMENTE o mesmo tipo de dado da origem (INT UNSIGNED).
-  idCliente INT UNSIGNED NOT NULL,
-
-  -- CONSTRAINT (Restrição de Integridade Referencial):
-  -- Garante que nenhuma corrida seja cadastrada no sistema para um "fantasma"
-  -- (ou seja, o idCliente informado precisa existir obrigatoriamente na tabela Cliente).
-  CONSTRAINT fk_cliente
-    FOREIGN KEY (idCliente)
-    REFERENCES Cliente(idCliente)
-);
-
--- =========================================================================
--- 3. POVOANDO O BANCO DE DADOS (INSERÇÃO DE DADOS - DML)
--- =========================================================================
-
--- CONCEITO DE ORDEM DE INSERÇÃO:
--- Como a tabela 'Corrida' depende da tabela 'Cliente' (devido à Chave Estrangeira),
--- DEVEMOS primeiro cadastrar os Clientes. Tentar solicitar uma Corrida para um
--- Cliente que ainda não existe resultará em erro de integridade referencial!
-
--- Cadastrando os Clientes na tabela Cliente:
-INSERT INTO Cliente (idCliente, nome) VALUES (1, 'Letícia Bezerra Silva');
-INSERT INTO Cliente (idCliente, nome) VALUES
-(2, 'Udson Willian'),
-(3, 'Jacinto da Luz');
-
--- Cadastrando os Corridas na tabela Corrida:
-INSERT INTO Corrida (idCorrida, dataCorrida, idCliente) VALUES
-(101, '2026-03-01', 1), -- Corrida 101 feita pela Letícia (idCliente = 1)
-(102, '2026-03-02', 2), -- Corrida 102 feita pelo Udson (idCliente = 2)
-(103, '2026-03-05', 3); -- Corrida 103 feita pelo Jacinto (idCliente = 3)
-
--- =========================================================================
--- TESTE DE SEGURANÇA / INTEGRIDADE REFERENCIAL (DESAFIO PARA OS ALUNOS)
--- =========================================================================
--- O comando abaixo está COMENTADO porque, se for executado, GERARÁ UM ERRO!
--- Motivo: O idCliente 99 não existe na tabela Cliente. A CONSTRAINT 'fk_cliente'
--- impede que o sistema aceite compras feitas por "clientes fantasmas".
--- INSERT INTO Corrida (idCorrida, dataCorrida, idCliente)
--- VALUES (104, '2026-03-10', 99);
--- Error Code: 1452. Cannot add or update a child row: a foreign key constraint fails...
-
--- =========================================================================
--- 4. CONSULTANDO OS DADOS (SELECT & JOINs)
--- =========================================================================
-
--- -------------------------------------------------------------------------
--- CONSULTA 1: Listar todos os clientes cadastrados
--- -------------------------------------------------------------------------
-SELECT * FROM Cliente;
-
-SELECT idCliente, nome FROM Cliente;
-
-SELECT IdCliente AS 'Codigo do Cliente', nome AS 'Nome' FROM Cliente;
+USE aplicativo_uber;
 
 
--- -------------------------------------------------------------------------
--- CONSULTA 2: Listar todas as corridas solicitadas
--- -------------------------------------------------------------------------
-SELECT * FROM Corrida;
+-- =====================================================
+-- CENARIO 1 - PREPARACAO PARA O LANCAMENTO
+-- =====================================================
+-- Antes de disponibilizar o aplicativo ao publico,
+-- a equipe configura as modalidades de pagamento
+-- e registra os enderecos da cidade atendidos pelo
+-- servico de transporte.
+-- =====================================================
+
+INSERT INTO formas_pagamento
+(descricao, tipo, ativo, taxa)
+VALUES
+('Cartao de Credito', 'Cartao', TRUE, 2.50),
+('Cartao de Debito', 'Cartao', TRUE, 1.50),
+('PIX', 'Digital', TRUE, 0.00),
+('Dinheiro', 'Presencial', TRUE, 0.00),
+('Carteira Digital', 'Digital', TRUE, 1.00);
 
 
--- -------------------------------------------------------------------------
--- CONSULTA 3: Cruzamento de Dados (INNER JOIN)
--- Exibe apenas as corridas que possuem um cliente associado
--- e apenas os clientes que solicitaram corridas.
--- -------------------------------------------------------------------------
-SELECT
-    c.idCorrida AS 'Código da Corrida',
-    c.dataCorrida AS 'Data da Solicitação',
-    c.nome AS 'Nome do Cliente'
-FROM Corrida c
-INNER JOIN Cliente c ON p.idCliente = c.idCliente;
-
--- EXPLICAÇÃO DO INNER JOIN:
--- 1. 'Corrida c' e 'Cliente c': Usamos "apelidos" (aliases) para facilitar a leitura.
--- 2. 'ON c.idCliente = c.idCliente': É a "ponte". Diz ao banco para ligar a FK da
---    tabela Corrida com a PK da tabela Cliente.
+INSERT INTO enderecos
+(rua, numero, bairro, cidade, cep)
+VALUES
+('Rua das Flores', '100', 'Centro', 'Santa Cruz', '59200-000'),
+('Avenida Principal', '250', 'Paraiso', 'Santa Cruz', '59200-001'),
+('Rua Nova', '45', 'Maracuja', 'Santa Cruz', '59200-002'),
+('Rua da Paz', '300', 'DNER', 'Santa Cruz', '59200-003'),
+('Avenida Brasil', '500', 'Centro', 'Santa Cruz', '59200-004'),
+('Rua Esperanca', '80', 'Conjunto Conego Monte', 'Santa Cruz', '59200-005'),
+('Rua Sao Jose', '120', 'Centro', 'Santa Cruz', '59200-006'),
+('Rua do Comercio', '75', 'Paraiso', 'Santa Cruz', '59200-007'),
+('Avenida Rio Branco', '210', 'DNER', 'Santa Cruz', '59200-008'),
+('Rua da Liberdade', '90', 'Maracuja', 'Santa Cruz', '59200-009');
 
 
--- -------------------------------------------------------------------------
--- CONSULTA 4: Cruzamento Completo (LEFT JOIN)
--- Exibe TODOS os clientes, inclusive aqueles que NUNCA solicitaram corridas.
--- -------------------------------------------------------------------------
-SELECT
-    c.idCliente AS 'ID Cliente',
-    c.nome AS 'Nome do Cliente',
-    c.idCorrida AS 'Código da Corrida',
-    c.dataCorrida AS 'Data'
-FROM Cliente c
-LEFT JOIN Corrida c ON c.idCliente = c.idCliente;
+-- =====================================================
+-- CENARIO 2 - SELECAO DOS MOTORISTAS PARCEIROS
+-- =====================================================
+-- Com a estrutura inicial pronta, a empresa inicia
+-- o processo de recrutamento de motoristas.
+-- Cinco profissionais realizam seus cadastros,
+-- informando CPF, CNH e telefone de contato.
+-- =====================================================
 
--- EXPLICAÇÃO DO LEFT JOIN:
--- A tabela da esquerda (Cliente) é a principal. Todos os seus registros aparecem.
+INSERT INTO motoristas
+(nome, cpf, cnh, telefone, data_cadastro)
+VALUES
+('Carlos Eduardo', '111.111.111-11', 'CNH10001', '84990000001', '2026-11-02'),
+('Roberto Santos', '222.222.222-22', 'CNH10002', '84990000002', '2026-11-03'),
+('Marcos Oliveira', '333.333.333-33', 'CNH10003', '84990000003', '2026-11-04'),
+('Anderson Lima', '444.444.444-44', 'CNH10004', '84990000004', '2026-11-05'),
+('Felipe Souza', '555.555.555-55', 'CNH10005', '84990000005', '2026-11-06');
+
+
+-- =====================================================
+-- CENARIO 3 - VISTORIA E CADASTRO DOS VEICULOS
+-- =====================================================
+-- Depois da aprovacao dos motoristas, cada profissional
+-- informa os dados do veiculo que sera utilizado
+-- para realizar as viagens solicitadas pelos passageiros.
+-- =====================================================
+
+INSERT INTO veiculos
+(modelo, marca, placa, ano, id_motorista)
+VALUES
+('Onix', 'Chevrolet', 'ABC1D23', 2022, 1),
+('HB20', 'Hyundai', 'DEF4G56', 2023, 2),
+('Gol', 'Volkswagen', 'GHI7J89', 2021, 3),
+('Argo', 'Fiat', 'KLM1N23', 2022, 4),
+('Corolla', 'Toyota', 'OPQ4R56', 2024, 5);
+
+
+-- =====================================================
+-- CENARIO 4 - CADASTRO DOS PRIMEIROS PASSAGEIROS
+-- =====================================================
+-- Com a proximidade da inauguracao, o aplicativo
+-- comeca a receber seus primeiros usuarios.
+-- Cinco moradores realizam seus cadastros na plataforma
+-- para solicitar viagens e conhecer o novo servico.
+-- =====================================================
+
+INSERT INTO passageiros
+(nome, cpf, telefone, email, data_nascimento)
+VALUES
+('Jose Silva', '666.666.666-66', '84991111111', 'jose@email.com', '1990-04-15'),
+('Maria Oliveira', '777.777.777-77', '84992222222', 'maria@email.com', '1995-08-20'),
+('Ana Costa', '888.888.888-88', '84993333333', 'ana@email.com', '1998-02-10'),
+('Pedro Almeida', '999.999.999-99', '84994444444', 'pedro@email.com', '1988-06-25'),
+('Juliana Ferreira', '123.456.789-10', '84995555555', 'juliana@email.com', '2000-12-05');
+
+
+-- =====================================================
+-- CENARIO 5 - INAUGURACAO E PRIMEIRAS CORRIDAS
+-- =====================================================
+-- O Move+ inicia oficialmente suas atividades.
+-- Jose solicita uma viagem do Centro ao Paraiso.
+-- Maria solicita transporte para o bairro DNER.
+-- Ana precisa se deslocar para outro endereco da cidade.
+-- Pedro e Juliana tambem utilizam o aplicativo.
+-- Os cinco motoristas aceitam as solicitacoes e
+-- todas as viagens registradas sao concluidas.
+-- =====================================================
+
+INSERT INTO corridas
+(id_passageiro, id_motorista, id_origem, id_destino,
+ data_hora, valor, status)
+VALUES
+(1, 1, 1, 2, '2026-11-10 08:00:00', 15.00, 'Concluida'),
+(2, 2, 3, 4, '2026-11-10 09:30:00', 20.00, 'Concluida'),
+(3, 3, 5, 6, '2026-11-10 11:00:00', 12.50, 'Concluida'),
+(4, 4, 7, 8, '2026-11-10 14:00:00', 18.00, 'Concluida'),
+(5, 5, 9, 10, '2026-11-10 16:30:00', 25.00, 'Concluida');
+
+
+-- =====================================================
+-- CENARIO 6 - PROCESSAMENTO DOS PAGAMENTOS
+-- =====================================================
+-- Depois que as viagens sao finalizadas, o sistema
+-- registra os pagamentos realizados pelos passageiros.
+-- Cada usuario escolhe uma modalidade diferente,
+-- demonstrando as opcoes oferecidas pelo aplicativo.
+-- =====================================================
+
+INSERT INTO pagamentos
+(id_corrida, id_forma, valor, data_pagamento, status)
+VALUES
+(1, 1, 15.00, '2026-11-10 08:30:00', 'Aprovado'),
+(2, 3, 20.00, '2026-11-10 10:00:00', 'Aprovado'),
+(3, 4, 12.50, '2026-11-10 11:30:00', 'Aprovado'),
+(4, 2, 18.00, '2026-11-10 14:30:00', 'Aprovado'),
+(5, 5, 25.00, '2026-11-10 17:00:00', 'Aprovado');
+
+
+-- =====================================================
+-- CENARIO 7 - AVALIACAO DA EXPERIENCIA DOS PASSAGEIROS
+-- =====================================================
+-- Ao final de cada viagem, os passageiros recebem
+-- a oportunidade de avaliar o servico prestado.
+-- As avaliacoes ajudam a empresa a acompanhar a
+-- qualidade do atendimento dos motoristas parceiros.
+-- =====================================================
+
+INSERT INTO avaliacoes
+(id_corrida, id_passageiro, id_motorista,
+ nota, comentario, data_avaliacao)
+VALUES
+(1, 1, 1, 5, 'Motorista educado e chegou no horario combinado.', '2026-11-10'),
+(2, 2, 2, 5, 'Viagem tranquila e atendimento excelente.', '2026-11-10'),
+(3, 3, 3, 4, 'Boa experiencia, motorista dirigiu com cuidado.', '2026-11-10'),
+(4, 4, 4, 5, 'Excelente atendimento e viagem confortavel.', '2026-11-10'),
+(5, 5, 5, 5, 'Motorista atencioso e percurso realizado rapidamente.', '2026-11-10');
