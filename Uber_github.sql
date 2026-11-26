@@ -1,15 +1,16 @@
 -- ==========================================
--- PROJETO: APLICATIVO UBER
+-- PROJETO: APLICATIVO MovePlus
 -- ARQUIVO: script-ddl.sql
 -- ==========================================
 
 CREATE DATABASE aplicativo_uber;
 
-USE aplicativo_uber;
+USE aplicativo_moveplus;
 
 -- CENARIO 1: Cadastro das formas de pagamento
-
 CREATE TABLE formas_pagamento (
+   -- o auto_increment gera automaticamente valores numéricos sequenciais e únicos 
+    --para uma coluna sempre que um novo registro é inserido.
     id_forma INT PRIMARY KEY AUTO_INCREMENT,
     descricao VARCHAR(50) NOT NULL UNIQUE,
     tipo VARCHAR(30) NOT NULL,
@@ -135,167 +136,8 @@ CREATE TABLE avaliacoes (
 
     FOREIGN KEY (id_motorista)
     REFERENCES motoristas(id_motorista),
-
+    -- BETWEEN é um operador usado na cláusula WHERE para 
+    -- filtrar registros dentro de um intervalo inclusivo
     CHECK (nota BETWEEN 1 AND 5)
 );
 
-
-
--- =====================================================
--- PROJETO: APLICATIVO UBER
--- ARQUIVO: script-dml.sql
--- =====================================================
-
-USE aplicativo_uber;
-
-
--- =====================================================
--- CENARIO 1 - PREPARACAO PARA O LANCAMENTO
--- =====================================================
--- Antes de disponibilizar o aplicativo ao publico,
--- a equipe configura as modalidades de pagamento
--- e registra os enderecos da cidade atendidos pelo
--- servico de transporte.
--- =====================================================
-
-INSERT INTO formas_pagamento
-(descricao, tipo, ativo, taxa)
-VALUES
-('Cartao de Credito', 'Cartao', TRUE, 2.50),
-('Cartao de Debito', 'Cartao', TRUE, 1.50),
-('PIX', 'Digital', TRUE, 0.00),
-('Dinheiro', 'Presencial', TRUE, 0.00),
-('Carteira Digital', 'Digital', TRUE, 1.00);
-
-
-INSERT INTO enderecos
-(rua, numero, bairro, cidade, cep)
-VALUES
-('Rua das Flores', '100', 'Centro', 'Santa Cruz', '59200-000'),
-('Avenida Principal', '250', 'Paraiso', 'Santa Cruz', '59200-001'),
-('Rua Nova', '45', 'Maracuja', 'Santa Cruz', '59200-002'),
-('Rua da Paz', '300', 'DNER', 'Santa Cruz', '59200-003'),
-('Avenida Brasil', '500', 'Centro', 'Santa Cruz', '59200-004'),
-('Rua Esperanca', '80', 'Conjunto Conego Monte', 'Santa Cruz', '59200-005'),
-('Rua Sao Jose', '120', 'Centro', 'Santa Cruz', '59200-006'),
-('Rua do Comercio', '75', 'Paraiso', 'Santa Cruz', '59200-007'),
-('Avenida Rio Branco', '210', 'DNER', 'Santa Cruz', '59200-008'),
-('Rua da Liberdade', '90', 'Maracuja', 'Santa Cruz', '59200-009');
-
-
--- =====================================================
--- CENARIO 2 - SELECAO DOS MOTORISTAS PARCEIROS
--- =====================================================
--- Com a estrutura inicial pronta, a empresa inicia
--- o processo de recrutamento de motoristas.
--- Cinco profissionais realizam seus cadastros,
--- informando CPF, CNH e telefone de contato.
--- =====================================================
-
-INSERT INTO motoristas
-(nome, cpf, cnh, telefone, data_cadastro)
-VALUES
-('Carlos Eduardo', '111.111.111-11', 'CNH10001', '84990000001', '2026-11-02'),
-('Roberto Santos', '222.222.222-22', 'CNH10002', '84990000002', '2026-11-03'),
-('Marcos Oliveira', '333.333.333-33', 'CNH10003', '84990000003', '2026-11-04'),
-('Anderson Lima', '444.444.444-44', 'CNH10004', '84990000004', '2026-11-05'),
-('Felipe Souza', '555.555.555-55', 'CNH10005', '84990000005', '2026-11-06');
-
-
--- =====================================================
--- CENARIO 3 - VISTORIA E CADASTRO DOS VEICULOS
--- =====================================================
--- Depois da aprovacao dos motoristas, cada profissional
--- informa os dados do veiculo que sera utilizado
--- para realizar as viagens solicitadas pelos passageiros.
--- =====================================================
-
-INSERT INTO veiculos
-(modelo, marca, placa, ano, id_motorista)
-VALUES
-('Onix', 'Chevrolet', 'ABC1D23', 2022, 1),
-('HB20', 'Hyundai', 'DEF4G56', 2023, 2),
-('Gol', 'Volkswagen', 'GHI7J89', 2021, 3),
-('Argo', 'Fiat', 'KLM1N23', 2022, 4),
-('Corolla', 'Toyota', 'OPQ4R56', 2024, 5);
-
-
--- =====================================================
--- CENARIO 4 - CADASTRO DOS PRIMEIROS PASSAGEIROS
--- =====================================================
--- Com a proximidade da inauguracao, o aplicativo
--- comeca a receber seus primeiros usuarios.
--- Cinco moradores realizam seus cadastros na plataforma
--- para solicitar viagens e conhecer o novo servico.
--- =====================================================
-
-INSERT INTO passageiros
-(nome, cpf, telefone, email, data_nascimento)
-VALUES
-('Jose Silva', '666.666.666-66', '84991111111', 'jose@email.com', '1990-04-15'),
-('Maria Oliveira', '777.777.777-77', '84992222222', 'maria@email.com', '1995-08-20'),
-('Ana Costa', '888.888.888-88', '84993333333', 'ana@email.com', '1998-02-10'),
-('Pedro Almeida', '999.999.999-99', '84994444444', 'pedro@email.com', '1988-06-25'),
-('Juliana Ferreira', '123.456.789-10', '84995555555', 'juliana@email.com', '2000-12-05');
-
-
--- =====================================================
--- CENARIO 5 - INAUGURACAO E PRIMEIRAS CORRIDAS
--- =====================================================
--- O Move+ inicia oficialmente suas atividades.
--- Jose solicita uma viagem do Centro ao Paraiso.
--- Maria solicita transporte para o bairro DNER.
--- Ana precisa se deslocar para outro endereco da cidade.
--- Pedro e Juliana tambem utilizam o aplicativo.
--- Os cinco motoristas aceitam as solicitacoes e
--- todas as viagens registradas sao concluidas.
--- =====================================================
-
-INSERT INTO corridas
-(id_passageiro, id_motorista, id_origem, id_destino,
- data_hora, valor, status)
-VALUES
-(1, 1, 1, 2, '2026-11-10 08:00:00', 15.00, 'Concluida'),
-(2, 2, 3, 4, '2026-11-10 09:30:00', 20.00, 'Concluida'),
-(3, 3, 5, 6, '2026-11-10 11:00:00', 12.50, 'Concluida'),
-(4, 4, 7, 8, '2026-11-10 14:00:00', 18.00, 'Concluida'),
-(5, 5, 9, 10, '2026-11-10 16:30:00', 25.00, 'Concluida');
-
-
--- =====================================================
--- CENARIO 6 - PROCESSAMENTO DOS PAGAMENTOS
--- =====================================================
--- Depois que as viagens sao finalizadas, o sistema
--- registra os pagamentos realizados pelos passageiros.
--- Cada usuario escolhe uma modalidade diferente,
--- demonstrando as opcoes oferecidas pelo aplicativo.
--- =====================================================
-
-INSERT INTO pagamentos
-(id_corrida, id_forma, valor, data_pagamento, status)
-VALUES
-(1, 1, 15.00, '2026-11-10 08:30:00', 'Aprovado'),
-(2, 3, 20.00, '2026-11-10 10:00:00', 'Aprovado'),
-(3, 4, 12.50, '2026-11-10 11:30:00', 'Aprovado'),
-(4, 2, 18.00, '2026-11-10 14:30:00', 'Aprovado'),
-(5, 5, 25.00, '2026-11-10 17:00:00', 'Aprovado');
-
-
--- =====================================================
--- CENARIO 7 - AVALIACAO DA EXPERIENCIA DOS PASSAGEIROS
--- =====================================================
--- Ao final de cada viagem, os passageiros recebem
--- a oportunidade de avaliar o servico prestado.
--- As avaliacoes ajudam a empresa a acompanhar a
--- qualidade do atendimento dos motoristas parceiros.
--- =====================================================
-
-INSERT INTO avaliacoes
-(id_corrida, id_passageiro, id_motorista,
- nota, comentario, data_avaliacao)
-VALUES
-(1, 1, 1, 5, 'Motorista educado e chegou no horario combinado.', '2026-11-10'),
-(2, 2, 2, 5, 'Viagem tranquila e atendimento excelente.', '2026-11-10'),
-(3, 3, 3, 4, 'Boa experiencia, motorista dirigiu com cuidado.', '2026-11-10'),
-(4, 4, 4, 5, 'Excelente atendimento e viagem confortavel.', '2026-11-10'),
-(5, 5, 5, 5, 'Motorista atencioso e percurso realizado rapidamente.', '2026-11-10');
